@@ -1,4 +1,4 @@
-import os, io
+import os
 from constants import MAX_CHARS 
 
 def get_file_content(working_directory, file_path):

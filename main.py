@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from prompts import system_prompt
-from functions.call_function import available_functions
+from call_function import available_functions
 
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -27,14 +27,18 @@ response = client.models.generate_content(
     model='gemini-2.5-flash', 
     contents=messages,
     config=types.GenerateContentConfig(tools=[available_functions],
-        system_instruction=system_prompt, max_output_tokens=200) # ! MAX TOKEN LIMIT ADDED
+        system_instruction=system_prompt, max_output_tokens=200), # ! MAX TOKEN LIMIT ADDED
 )
 if args.verbose:
     print("User prompt: " + str(args.user_prompt))
     print("Prompt tokens: " + str(response.usage_metadata.prompt_token_count))
     print("Response tokens: " + str(response.usage_metadata.candidates_token_count))
 
-print(response.text)
+if response.function_calls:
+    for f in response.function_calls:
+        print(f"Calling function: {f.name}({f.args})")
+else:
+    print(response.text)
 
 def main():
     pass
