@@ -1,4 +1,4 @@
-import os, argparse
+import os, argparse, sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -9,6 +9,7 @@ def main():
 
     load_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
+
     if api_key is None:
         raise RuntimeError("Error getting API Key")
 
@@ -24,35 +25,56 @@ def main():
     # ------- MESSAGES LIST ------
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    # --------- RESPONSE ---------
-    response_list = []
+    for _ in range(20):
+        # --------- RESPONSE ---------
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash', 
-        contents=messages,
-        config=types.GenerateContentConfig(tools=[available_functions],
-            system_instruction=system_prompt, max_output_tokens=200), # ! MAX TOKEN LIMIT ADDED
-    )
-    if args.verbose:
-        print("User prompt: " + str(args.user_prompt))
-        print("Prompt tokens: " + str(response.usage_metadata.prompt_token_count))
-        print("Response tokens: " + str(response.usage_metadata.candidates_token_count))
+        response = client.models.generate_content(
+            model='gemini-2.5-flash', 
+            contents=messages,
+            config=types.GenerateContentConfig(tools=[available_functions],
+                system_instruction=system_prompt),
+        )
 
-    if response.function_calls:
-        result_call_function = call_function(response.function_calls[0], verbose=args.verbose)
-        if not result_call_function.parts[0]:
-            raise Exception("Error: an error occurred")
-        if result_call_function.parts[0].function_response == None:
-            raise Exception("Error: an error occurred")
-        if result_call_function.parts[0].function_response.response == None:
-            raise Exception("Error: an error occurred")
-        response_list.append(result_call_function.parts[0])
-        
+        if response.candidates:
+            for c in response.candidates:
+                messages.append(c.content)
+        if not response.function_calls:
+            print("Response:")
+            print(response.text)
+            return
+    
+
         if args.verbose:
-            print(f"-> {result_call_function.parts[0].function_response.response}")
+            print("User prompt: " + str(args.user_prompt))
+            print("Prompt tokens: " + str(response.usage_metadata.prompt_token_count))
+            print("Response tokens: " + str(response.usage_metadata.candidates_token_count))
+
+        if response.function_calls:
+            function_responses = []
+            for f in response.function_calls:
+                result_call_function = call_function(f, verbose=args.verbose)
+
+                if not result_call_function.parts[0]:
+                    raise Exception("Error: an error occurred")
+                if result_call_function.parts[0].function_response == None:
+                    raise Exception("Error: an error occurred")
+                if result_call_function.parts[0].function_response.response == None:
+                    raise Exception("Error: an error occurred")
+                
+                function_responses.append(result_call_function.parts[0])
+                
+                if args.verbose:
+                    print(f"-> {result_call_function.parts[0].function_response.response}")
+
+            messages.append(types.Content(role="user", parts=function_responses))
+            
+        if not response.function_calls:
+            print("Response:")
+            print(response.text)
+            return
         
-    else:
-        print(response.text)
+    print("Max iterations ended")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
