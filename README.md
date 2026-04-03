@@ -3,7 +3,7 @@
 An autonomous AI agent built with Python and the Gemini API that can diagnose and repair bugs in a codebase. Unlike a standard chatbot, this agent uses a **tool-use loop** to interact directly with the local filesystem and terminal to verify its own fixes.
 
 
-## Warning
+## Warning
 
 This tool has the capability to modify files and execute commands on your local system. Always review the agent's permissions and use it within a version-controlled environment to allow for easy rollbacks.
 
